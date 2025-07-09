@@ -5,11 +5,10 @@ struct BuildResult: Codable {
     let status: String
     let summary: BuildSummary
     let errors: [BuildError]
-    let warnings: [BuildWarning]
     let failedTests: [FailedTest]
     
     enum CodingKeys: String, CodingKey {
-        case status, summary, errors, warnings
+        case status, summary, errors
         case failedTests = "failed_tests"
     }
     
@@ -22,10 +21,6 @@ struct BuildResult: Codable {
             try container.encode(errors, forKey: .errors)
         }
         
-        if !warnings.isEmpty {
-            try container.encode(warnings, forKey: .warnings)
-        }
-        
         if !failedTests.isEmpty {
             try container.encode(failedTests, forKey: .failedTests)
         }
@@ -34,12 +29,11 @@ struct BuildResult: Codable {
 
 struct BuildSummary: Codable {
     let errors: Int
-    let warnings: Int
     let failedTests: Int
     let buildTime: String?
     
     enum CodingKeys: String, CodingKey {
-        case errors, warnings
+        case errors
         case failedTests = "failed_tests"
         case buildTime = "build_time"
     }
@@ -51,11 +45,6 @@ struct BuildError: Codable {
     let message: String
 }
 
-struct BuildWarning: Codable {
-    let file: String?
-    let line: Int?
-    let message: String
-}
 
 struct FailedTest: Codable {
     let test: String
@@ -66,9 +55,9 @@ struct FailedTest: Codable {
 
 class OutputParser {
     private var errors: [BuildError] = []
-    private var warnings: [BuildWarning] = []
     private var failedTests: [FailedTest] = []
     private var buildTime: String?
+    private var seenTestNames: Set<String> = []
     
     @available(*, deprecated, message: "This function will be removed in a future version")
     func deprecatedFunction() -> String {
@@ -90,7 +79,6 @@ class OutputParser {
         
         let summary = BuildSummary(
             errors: errors.count,
-            warnings: warnings.count,
             failedTests: failedTests.count,
             buildTime: buildTime
         )
@@ -99,21 +87,46 @@ class OutputParser {
             status: status,
             summary: summary,
             errors: errors,
-            warnings: warnings,
             failedTests: failedTests
         )
     }
     
     private func parseLine(_ line: String) {
         if let failedTest = parseFailedTest(line) {
-            failedTests.append(failedTest)
+            let normalizedTestName = normalizeTestName(failedTest.test)
+            
+            // Check if we've already seen this test name or a similar one
+            if !hasSeenSimilarTest(normalizedTestName) {
+                failedTests.append(failedTest)
+                seenTestNames.insert(normalizedTestName)
+            } else {
+                // If we've seen this test before, check if the new one has more info (file/line)
+                if let index = failedTests.firstIndex(where: { normalizeTestName($0.test) == normalizedTestName }) {
+                    let existing = failedTests[index]
+                    // Update if new test has file info and existing doesn't
+                    if failedTest.file != nil && existing.file == nil {
+                        failedTests[index] = failedTest
+                    }
+                }
+            }
         } else if let error = parseError(line) {
             errors.append(error)
-        } else if let warning = parseWarning(line) {
-            warnings.append(warning)
         } else if let time = parseBuildTime(line) {
             buildTime = time
         }
+    }
+    
+    private func normalizeTestName(_ testName: String) -> String {
+        // Convert "-[xcsiftTests.OutputParserTests testFirstFailingTest]" to "xcsiftTests.OutputParserTests testFirstFailingTest"
+        if testName.hasPrefix("-[") && testName.hasSuffix("]") {
+            let withoutBrackets = String(testName.dropFirst(2).dropLast(1))
+            return withoutBrackets.replacingOccurrences(of: " ", with: " ")
+        }
+        return testName
+    }
+    
+    private func hasSeenSimilarTest(_ normalizedTestName: String) -> Bool {
+        return seenTestNames.contains(normalizedTestName)
     }
     
     private func parseError(_ line: String) -> BuildError? {
@@ -225,83 +238,6 @@ class OutputParser {
         return nil
     }
     
-    private func parseWarning(_ line: String) -> BuildWarning? {
-        // Pattern: file:line:column: warning: message
-        let fileLineColumnWarning = Regex {
-            Capture(OneOrMore(.any, .reluctant))
-            ":"
-            Capture(OneOrMore(.digit))
-            ":"
-            OneOrMore(.digit)
-            ": warning: "
-            Capture(OneOrMore(.any, .reluctant))
-            Anchor.endOfSubject
-        }
-        
-        if let match = line.firstMatch(of: fileLineColumnWarning) {
-            let file = String(match.1)
-            let lineNumber = Int(String(match.2))
-            let message = String(match.3)
-            return BuildWarning(file: file, line: lineNumber, message: message)
-        }
-        
-        // Pattern: file:line: warning: message
-        let fileLineWarning = Regex {
-            Capture(OneOrMore(.any, .reluctant))
-            ":"
-            Capture(OneOrMore(.digit))
-            ": warning: "
-            Capture(OneOrMore(.any, .reluctant))
-            Anchor.endOfSubject
-        }
-        
-        if let match = line.firstMatch(of: fileLineWarning) {
-            let file = String(match.1)
-            let lineNumber = Int(String(match.2))
-            let message = String(match.3)
-            return BuildWarning(file: file, line: lineNumber, message: message)
-        }
-        
-        // Pattern: file: warning: message
-        let fileWarning = Regex {
-            Capture(OneOrMore(.any, .reluctant))
-            ": warning: "
-            Capture(OneOrMore(.any, .reluctant))
-            Anchor.endOfSubject
-        }
-        
-        if let match = line.firstMatch(of: fileWarning) {
-            let file = String(match.1)
-            let message = String(match.2)
-            return BuildWarning(file: file, line: nil, message: message)
-        }
-        
-        // Pattern: ⚠️ message
-        let emojiWarning = Regex {
-            "⚠️ "
-            Capture(OneOrMore(.any, .reluctant))
-            Anchor.endOfSubject
-        }
-        
-        if let match = line.firstMatch(of: emojiWarning) {
-            let message = String(match.1)
-            return BuildWarning(file: nil, line: nil, message: message)
-        }
-        
-        // Pattern: warning: message
-        let simpleWarning = Regex {
-            "warning: "
-            Capture(OneOrMore(.any, .reluctant))
-            Anchor.endOfSubject
-        }
-        
-        if let match = line.firstMatch(of: simpleWarning) {
-            let message = String(match.1)
-            return BuildWarning(file: nil, line: nil, message: message)
-        }
-        
-        return nil
-    }
     
     private func parseFailedTest(_ line: String) -> FailedTest? {
         // Handle XCUnit test failures specifically first
@@ -348,6 +284,7 @@ class OutputParser {
             "' failed ("
             Capture(OneOrMore(.any, .reluctant))
             ")"
+            Optionally(".")
             Anchor.endOfSubject
         }
         

@@ -21,23 +21,6 @@ final class OutputParserTests: XCTestCase {
         XCTAssertEqual(result.errors[0].message, "use of undeclared identifier 'unknown'")
     }
     
-    func testParseWarning() {
-        let parser = OutputParser()
-        let input = """
-        ViewController.swift:23:9: warning: variable 'temp' was never used
-        let temp = "test"
-        ^
-        """
-        
-        let result = parser.parse(input: input)
-        
-        XCTAssertEqual(result.status, "success")
-        XCTAssertEqual(result.summary.warnings, 1)
-        XCTAssertEqual(result.warnings.count, 1)
-        XCTAssertEqual(result.warnings[0].file, "ViewController.swift")
-        XCTAssertEqual(result.warnings[0].line, 23)
-        XCTAssertEqual(result.warnings[0].message, "variable 'temp' was never used")
-    }
     
     func testParseSuccessfulBuild() {
         let parser = OutputParser()
@@ -50,7 +33,6 @@ final class OutputParserTests: XCTestCase {
         
         XCTAssertEqual(result.status, "success")
         XCTAssertEqual(result.summary.errors, 0)
-        XCTAssertEqual(result.summary.warnings, 0)
         XCTAssertEqual(result.summary.failedTests, 0)
     }
     
@@ -82,9 +64,7 @@ final class OutputParserTests: XCTestCase {
         
         XCTAssertEqual(result.status, "failed")
         XCTAssertEqual(result.summary.errors, 2)
-        XCTAssertEqual(result.summary.warnings, 1)
         XCTAssertEqual(result.errors.count, 2)
-        XCTAssertEqual(result.warnings.count, 1)
     }
     
     func testInvalidAssertion() {
@@ -130,5 +110,30 @@ final class OutputParserTests: XCTestCase {
         let parser = OutputParser()
         let _ = parser.deprecatedFunction()
         parser.functionWithUnusedVariable()
+    }
+    
+    func testFirstFailingTest() {
+        XCTAssertEqual("expected", "actual", "This test should fail - values don't match")
+    }
+    
+    func testSecondFailingTest() {
+        XCTAssertTrue(false, "This test should fail - asserting false")
+    }
+    
+    func testParseCompileError() {
+        let parser = OutputParser()
+        let input = """
+        UserManager.swift:42:10: error: cannot find 'undefinedVariable' in scope
+        print(undefinedVariable)
+        ^
+        """
+        
+        let result = parser.parse(input: input)
+        
+        XCTAssertEqual(result.status, "failed")
+        XCTAssertEqual(result.summary.errors, 1)
+        XCTAssertEqual(result.errors[0].file, "UserManager.swift")
+        XCTAssertEqual(result.errors[0].line, 42)
+        XCTAssertEqual(result.errors[0].message, "cannot find 'undefinedVariable' in scope")
     }
 }

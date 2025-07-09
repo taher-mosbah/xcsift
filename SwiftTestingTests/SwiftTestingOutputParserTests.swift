@@ -16,7 +16,6 @@ struct SwiftTestingOutputParserTests {
         
         #expect(result.status == "success")
         #expect(result.summary.errors == 0)
-        #expect(result.summary.warnings == 0)
         #expect(result.summary.failedTests == 0)
     }
     
@@ -39,41 +38,20 @@ struct SwiftTestingOutputParserTests {
         #expect(result.errors[0].message == "use of undeclared identifier 'unknown'")
     }
     
-    @Test("Parse warning message")
-    func parseWarningMessage() {
-        let parser = OutputParser()
-        let input = """
-        ViewController.swift:23:9: warning: variable 'temp' was never used
-        let temp = "test"
-        ^
-        """
-        
-        let result = parser.parse(input: input)
-        
-        #expect(result.status == "success")
-        #expect(result.summary.warnings == 1)
-        #expect(result.warnings.count == 1)
-        #expect(result.warnings[0].file == "ViewController.swift")
-        #expect(result.warnings[0].line == 23)
-        #expect(result.warnings[0].message == "variable 'temp' was never used")
-    }
     
-    @Test("Parse multiple errors and warnings")
-    func parseMultipleErrorsAndWarnings() {
+    @Test("Parse multiple errors")
+    func parseMultipleErrors() {
         let parser = OutputParser()
         let input = """
         UserService.swift:45:12: error: cannot find 'invalidFunction' in scope
         NetworkManager.swift:23:5: error: use of undeclared identifier 'unknownVariable'
-        AppDelegate.swift:67:8: warning: unused variable 'config'
         """
         
         let result = parser.parse(input: input)
         
         #expect(result.status == "failed")
         #expect(result.summary.errors == 2)
-        #expect(result.summary.warnings == 1)
         #expect(result.errors.count == 2)
-        #expect(result.warnings.count == 1)
     }
     
     @Test("Parse fatal error")
@@ -117,15 +95,12 @@ struct SwiftTestingOutputParserTests {
         let parser = OutputParser()
         let input = """
         main.swift:10:5: error: syntax error
-        test.swift:5:1: warning: unused import
         """
         
         let result = parser.parse(input: input)
         
         #expect(result.status == "failed")
         #expect(result.errors.count == 1)
-        #expect(result.warnings.count == 1)
         #expect(result.errors[0].file == "main.swift")
-        #expect(result.warnings[0].file == "test.swift")
     }
 }

@@ -1,4 +1,5 @@
 import Foundation
+import RegexBuilder
 
 struct BuildResult: Codable {
     let status: String
@@ -116,86 +117,187 @@ class OutputParser {
     }
     
     private func parseError(_ line: String) -> BuildError? {
-        let errorPatterns = [
-            #"^(.+):(\d+):(\d+): error: (.+)$"#,
-            #"^(.+):(\d+): error: (.+)$"#,
-            #"^(.+): error: (.+)$"#,
-            #"^(.+):(\d+): Fatal error: (.+)$"#,
-            #"^(.+): Fatal error: (.+)$"#,
-            #"^❌ (.+)$"#,
-            #"^error: (.+)$"#
-        ]
+        // Pattern: file:line:column: error: message
+        let fileLineColumnError = Regex {
+            Capture(OneOrMore(.any, .reluctant))
+            ":"
+            Capture(OneOrMore(.digit))
+            ":"
+            OneOrMore(.digit)
+            ": error: "
+            Capture(OneOrMore(.any, .reluctant))
+            Anchor.endOfSubject
+        }
         
-        for pattern in errorPatterns {
-            if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
-                let matches = regex.matches(in: line, options: [], range: NSRange(location: 0, length: line.count))
-                if let match = matches.first {
-                    let groups = (0..<match.numberOfRanges).map { i in
-                        let range = match.range(at: i)
-                        return range.location != NSNotFound ? String(line[Range(range, in: line)!]) : nil
-                    }
-                    
-                    if groups.count >= 5 {
-                        let file = groups[1]
-                        let line = Int(groups[2] ?? "")
-                        let message = groups[4] ?? ""
-                        return BuildError(file: file, line: line, message: message)
-                    } else if groups.count >= 4 {
-                        let file = groups[1]
-                        let line = Int(groups[2] ?? "")
-                        let message = groups[3] ?? ""
-                        return BuildError(file: file, line: line, message: message)
-                    } else if groups.count >= 3 {
-                        let file = groups[1]
-                        let message = groups[2] ?? ""
-                        return BuildError(file: file, line: nil, message: message)
-                    } else if groups.count >= 2 {
-                        return BuildError(file: nil, line: nil, message: groups[1] ?? "")
-                    }
-                }
-            }
+        if let match = line.firstMatch(of: fileLineColumnError) {
+            let file = String(match.1)
+            let lineNumber = Int(String(match.2))
+            let message = String(match.3)
+            return BuildError(file: file, line: lineNumber, message: message)
+        }
+        
+        // Pattern: file:line: error: message
+        let fileLineError = Regex {
+            Capture(OneOrMore(.any, .reluctant))
+            ":"
+            Capture(OneOrMore(.digit))
+            ": error: "
+            Capture(OneOrMore(.any, .reluctant))
+            Anchor.endOfSubject
+        }
+        
+        if let match = line.firstMatch(of: fileLineError) {
+            let file = String(match.1)
+            let lineNumber = Int(String(match.2))
+            let message = String(match.3)
+            return BuildError(file: file, line: lineNumber, message: message)
+        }
+        
+        // Pattern: file: error: message
+        let fileError = Regex {
+            Capture(OneOrMore(.any, .reluctant))
+            ": error: "
+            Capture(OneOrMore(.any, .reluctant))
+            Anchor.endOfSubject
+        }
+        
+        if let match = line.firstMatch(of: fileError) {
+            let file = String(match.1)
+            let message = String(match.2)
+            return BuildError(file: file, line: nil, message: message)
+        }
+        
+        // Pattern: file:line: Fatal error: message
+        let fileFatalError = Regex {
+            Capture(OneOrMore(.any, .reluctant))
+            ":"
+            Capture(OneOrMore(.digit))
+            ": Fatal error: "
+            Capture(OneOrMore(.any, .reluctant))
+            Anchor.endOfSubject
+        }
+        
+        if let match = line.firstMatch(of: fileFatalError) {
+            let file = String(match.1)
+            let lineNumber = Int(String(match.2))
+            let message = String(match.3)
+            return BuildError(file: file, line: lineNumber, message: message)
+        }
+        
+        // Pattern: file: Fatal error: message
+        let fatalError = Regex {
+            Capture(OneOrMore(.any, .reluctant))
+            ": Fatal error: "
+            Capture(OneOrMore(.any, .reluctant))
+            Anchor.endOfSubject
+        }
+        
+        if let match = line.firstMatch(of: fatalError) {
+            let file = String(match.1)
+            let message = String(match.2)
+            return BuildError(file: file, line: nil, message: message)
+        }
+        
+        // Pattern: ❌ message
+        let emojiError = Regex {
+            "❌ "
+            Capture(OneOrMore(.any, .reluctant))
+            Anchor.endOfSubject
+        }
+        
+        if let match = line.firstMatch(of: emojiError) {
+            let message = String(match.1)
+            return BuildError(file: nil, line: nil, message: message)
+        }
+        
+        // Pattern: error: message
+        let simpleError = Regex {
+            "error: "
+            Capture(OneOrMore(.any, .reluctant))
+            Anchor.endOfSubject
+        }
+        
+        if let match = line.firstMatch(of: simpleError) {
+            let message = String(match.1)
+            return BuildError(file: nil, line: nil, message: message)
         }
         
         return nil
     }
     
     private func parseWarning(_ line: String) -> BuildWarning? {
-        let warningPatterns = [
-            #"^(.+):(\d+):(\d+): warning: (.+)$"#,
-            #"^(.+):(\d+): warning: (.+)$"#,
-            #"^(.+): warning: (.+)$"#,
-            #"^⚠️ (.+)$"#,
-            #"^warning: (.+)$"#
-        ]
+        // Pattern: file:line:column: warning: message
+        let fileLineColumnWarning = Regex {
+            Capture(OneOrMore(.any, .reluctant))
+            ":"
+            Capture(OneOrMore(.digit))
+            ":"
+            OneOrMore(.digit)
+            ": warning: "
+            Capture(OneOrMore(.any, .reluctant))
+            Anchor.endOfSubject
+        }
         
-        for pattern in warningPatterns {
-            if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
-                let matches = regex.matches(in: line, options: [], range: NSRange(location: 0, length: line.count))
-                if let match = matches.first {
-                    let groups = (0..<match.numberOfRanges).map { i in
-                        let range = match.range(at: i)
-                        return range.location != NSNotFound ? String(line[Range(range, in: line)!]) : nil
-                    }
-                    
-                    if groups.count >= 5 {
-                        let file = groups[1]
-                        let line = Int(groups[2] ?? "")
-                        let message = groups[4] ?? ""
-                        return BuildWarning(file: file, line: line, message: message)
-                    } else if groups.count >= 4 {
-                        let file = groups[1]
-                        let line = Int(groups[2] ?? "")
-                        let message = groups[3] ?? ""
-                        return BuildWarning(file: file, line: line, message: message)
-                    } else if groups.count >= 3 {
-                        let file = groups[1]
-                        let message = groups[2] ?? ""
-                        return BuildWarning(file: file, line: nil, message: message)
-                    } else if groups.count >= 2 {
-                        return BuildWarning(file: nil, line: nil, message: groups[1] ?? "")
-                    }
-                }
-            }
+        if let match = line.firstMatch(of: fileLineColumnWarning) {
+            let file = String(match.1)
+            let lineNumber = Int(String(match.2))
+            let message = String(match.3)
+            return BuildWarning(file: file, line: lineNumber, message: message)
+        }
+        
+        // Pattern: file:line: warning: message
+        let fileLineWarning = Regex {
+            Capture(OneOrMore(.any, .reluctant))
+            ":"
+            Capture(OneOrMore(.digit))
+            ": warning: "
+            Capture(OneOrMore(.any, .reluctant))
+            Anchor.endOfSubject
+        }
+        
+        if let match = line.firstMatch(of: fileLineWarning) {
+            let file = String(match.1)
+            let lineNumber = Int(String(match.2))
+            let message = String(match.3)
+            return BuildWarning(file: file, line: lineNumber, message: message)
+        }
+        
+        // Pattern: file: warning: message
+        let fileWarning = Regex {
+            Capture(OneOrMore(.any, .reluctant))
+            ": warning: "
+            Capture(OneOrMore(.any, .reluctant))
+            Anchor.endOfSubject
+        }
+        
+        if let match = line.firstMatch(of: fileWarning) {
+            let file = String(match.1)
+            let message = String(match.2)
+            return BuildWarning(file: file, line: nil, message: message)
+        }
+        
+        // Pattern: ⚠️ message
+        let emojiWarning = Regex {
+            "⚠️ "
+            Capture(OneOrMore(.any, .reluctant))
+            Anchor.endOfSubject
+        }
+        
+        if let match = line.firstMatch(of: emojiWarning) {
+            let message = String(match.1)
+            return BuildWarning(file: nil, line: nil, message: message)
+        }
+        
+        // Pattern: warning: message
+        let simpleWarning = Regex {
+            "warning: "
+            Capture(OneOrMore(.any, .reluctant))
+            Anchor.endOfSubject
+        }
+        
+        if let match = line.firstMatch(of: simpleWarning) {
+            let message = String(match.1)
+            return BuildWarning(file: nil, line: nil, message: message)
         }
         
         return nil
@@ -204,92 +306,194 @@ class OutputParser {
     private func parseFailedTest(_ line: String) -> FailedTest? {
         // Handle XCUnit test failures specifically first
         if line.contains("XCTAssertEqual failed") || line.contains("XCTAssertTrue failed") || line.contains("XCTAssertFalse failed") {
-            // Look for the pattern: file:line: error: -[ClassName testMethod] : XCTAssert... failed: details
-            if let testRegex = try? NSRegularExpression(pattern: #"^(.+):(\d+): error: -\[(.+?)\] : (.+)$"#, options: [.dotMatchesLineSeparators]) {
-                let testMatches = testRegex.matches(in: line, options: [], range: NSRange(location: 0, length: line.count))
-                if let testMatch = testMatches.first, testMatch.numberOfRanges >= 5 {
-                    let fileRange = testMatch.range(at: 1)
-                    let lineRange = testMatch.range(at: 2)
-                    let testNameRange = testMatch.range(at: 3)
-                    let messageRange = testMatch.range(at: 4)
-                    
-                    let file = String(line[Range(fileRange, in: line)!])
-                    let lineNumber = Int(String(line[Range(lineRange, in: line)!]))
-                    let testName = String(line[Range(testNameRange, in: line)!])
-                    let message = String(line[Range(messageRange, in: line)!])
-                    return FailedTest(test: testName, message: message, file: file, line: lineNumber)
-                }
+            // Pattern: file:line: error: -[ClassName testMethod] : XCTAssert... failed: details
+            let xctestPattern = Regex {
+                Capture(OneOrMore(.any, .reluctant))
+                ":"
+                Capture(OneOrMore(.digit))
+                ": error: -["
+                Capture(OneOrMore(.any, .reluctant))
+                "] : "
+                Capture(OneOrMore(.any, .reluctant))
+                Anchor.endOfSubject
             }
-            // Fallback: extract whatever we can
-            if let testRegex = try? NSRegularExpression(pattern: #"-\[(.+?)\]"#, options: []) {
-                let testMatches = testRegex.matches(in: line, options: [], range: NSRange(location: 0, length: line.count))
-                if let testMatch = testMatches.first, testMatch.numberOfRanges >= 2 {
-                    let testNameRange = testMatch.range(at: 1)
-                    let testName = String(line[Range(testNameRange, in: line)!])
-                    return FailedTest(test: testName, message: line.trimmingCharacters(in: .whitespaces), file: nil, line: nil)
-                }
+            
+            if let match = line.firstMatch(of: xctestPattern) {
+                let file = String(match.1)
+                let lineNumber = Int(String(match.2))
+                let testName = String(match.3)
+                let message = String(match.4)
+                return FailedTest(test: testName, message: message, file: file, line: lineNumber)
             }
+            
+            // Fallback: extract test name from -[ClassName testMethod] format
+            let testNamePattern = Regex {
+                "-["
+                Capture(OneOrMore(.any, .reluctant))
+                "]"
+            }
+            
+            if let match = line.firstMatch(of: testNamePattern) {
+                let testName = String(match.1)
+                return FailedTest(test: testName, message: line.trimmingCharacters(in: .whitespaces), file: nil, line: nil)
+            }
+            
             return FailedTest(test: "Test assertion", message: line.trimmingCharacters(in: .whitespaces), file: nil, line: nil)
         }
         
-        let testPatterns = [
-            #"^Test Case '(.+)' failed \((.+)\)$"#,
-            #"^(.+): (.+) failed:(.+)$"#,
-            #"^❌ (.+) \((.+)\)$"#,
-            #"^(\S+) \((.+)\) failed$"#,
-            #"^✘ Test "(.+)" recorded an issue at (.+):(\d+):\d+: (.+)$"#,
-            #"^✘ Test "(.+)" failed after .+ with \d+ issues?.$"#
-        ]
+        // Pattern: Test Case 'TestName' failed (time)
+        let testCasePattern = Regex {
+            "Test Case '"
+            Capture(OneOrMore(.any, .reluctant))
+            "' failed ("
+            Capture(OneOrMore(.any, .reluctant))
+            ")"
+            Anchor.endOfSubject
+        }
         
-        for pattern in testPatterns {
-            if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
-                let matches = regex.matches(in: line, options: [], range: NSRange(location: 0, length: line.count))
-                if let match = matches.first {
-                    let groups = (0..<match.numberOfRanges).map { i in
-                        let range = match.range(at: i)
-                        return range.location != NSNotFound ? String(line[Range(range, in: line)!]) : nil
-                    }
-                    
-                    if groups.count >= 5 {
-                        // Swift Testing pattern: ✘ Test "name" recorded an issue at file:line:column: message
-                        let test = groups[1] ?? ""
-                        let file = groups[2] ?? ""
-                        let line = Int(groups[3] ?? "")
-                        let message = groups[4] ?? ""
-                        return FailedTest(test: test, message: message, file: file, line: line)
-                    } else if groups.count >= 3 {
-                        let test = groups[1] ?? ""
-                        let message = groups[2] ?? ""
-                        return FailedTest(test: test, message: message, file: nil, line: nil)
-                    }
-                }
-            }
+        if let match = line.firstMatch(of: testCasePattern) {
+            let test = String(match.1)
+            let message = String(match.2)
+            return FailedTest(test: test, message: message, file: nil, line: nil)
+        }
+        
+        // Pattern: ✘ Test "name" recorded an issue at file:line:column: message
+        let swiftTestingIssuePattern = Regex {
+            "✘ Test \""
+            Capture(OneOrMore(.any, .reluctant))
+            "\" recorded an issue at "
+            Capture(OneOrMore(.any, .reluctant))
+            ":"
+            Capture(OneOrMore(.digit))
+            ":"
+            OneOrMore(.digit)
+            ": "
+            Capture(OneOrMore(.any, .reluctant))
+            Anchor.endOfSubject
+        }
+        
+        if let match = line.firstMatch(of: swiftTestingIssuePattern) {
+            let test = String(match.1)
+            let file = String(match.2)
+            let lineNumber = Int(String(match.3))
+            let message = String(match.4)
+            return FailedTest(test: test, message: message, file: file, line: lineNumber)
+        }
+        
+        // Pattern: ✘ Test "name" failed after time with N issues.
+        let swiftTestingFailedPattern = Regex {
+            "✘ Test \""
+            Capture(OneOrMore(.any, .reluctant))
+            "\" failed after "
+            OneOrMore(.any, .reluctant)
+            " with "
+            OneOrMore(.digit)
+            " issue"
+            Optionally("s")
+            "."
+            Anchor.endOfSubject
+        }
+        
+        if let match = line.firstMatch(of: swiftTestingFailedPattern) {
+            let test = String(match.1)
+            return FailedTest(test: test, message: "Test failed", file: nil, line: nil)
+        }
+        
+        // Pattern: ❌ testname (message)
+        let emojiTestPattern = Regex {
+            "❌ "
+            Capture(OneOrMore(.any, .reluctant))
+            " ("
+            Capture(OneOrMore(.any, .reluctant))
+            ")"
+            Anchor.endOfSubject
+        }
+        
+        if let match = line.firstMatch(of: emojiTestPattern) {
+            let test = String(match.1)
+            let message = String(match.2)
+            return FailedTest(test: test, message: message, file: nil, line: nil)
+        }
+        
+        // Pattern: testname (message) failed
+        let testFailedPattern = Regex {
+            Capture(OneOrMore(.any, .reluctant))
+            " ("
+            Capture(OneOrMore(.any, .reluctant))
+            ") failed"
+            Anchor.endOfSubject
+        }
+        
+        if let match = line.firstMatch(of: testFailedPattern) {
+            let test = String(match.1)
+            let message = String(match.2)
+            return FailedTest(test: test, message: message, file: nil, line: nil)
+        }
+        
+        // Pattern: generic failed test with colon
+        let colonFailedPattern = Regex {
+            Capture(OneOrMore(.any, .reluctant))
+            ": "
+            Capture(OneOrMore(.any, .reluctant))
+            " failed:"
+            Capture(OneOrMore(.any, .reluctant))
+            Anchor.endOfSubject
+        }
+        
+        if let match = line.firstMatch(of: colonFailedPattern) {
+            let test = String(match.1)
+            let message = String(match.2)
+            return FailedTest(test: test, message: message, file: nil, line: nil)
         }
         
         return nil
     }
     
     private func parseBuildTime(_ line: String) -> String? {
-        let timePatterns = [
-            #"^Build succeeded in (.+)$"#,
-            #"^Build failed after (.+)$"#,
-            #"^Executed \d+ tests?, with \d+ failures? \(\d+ unexpected\) in (.+) \((.+)\) seconds$"#
-        ]
+        // Pattern: Build succeeded in time
+        let buildSucceededPattern = Regex {
+            "Build succeeded in "
+            Capture(OneOrMore(.any, .reluctant))
+            Anchor.endOfSubject
+        }
         
-        for pattern in timePatterns {
-            if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
-                let matches = regex.matches(in: line, options: [], range: NSRange(location: 0, length: line.count))
-                if let match = matches.first {
-                    let groups = (0..<match.numberOfRanges).map { i in
-                        let range = match.range(at: i)
-                        return range.location != NSNotFound ? String(line[Range(range, in: line)!]) : nil
-                    }
-                    
-                    if groups.count >= 2 {
-                        return groups[1]
-                    }
-                }
-            }
+        if let match = line.firstMatch(of: buildSucceededPattern) {
+            return String(match.1)
+        }
+        
+        // Pattern: Build failed after time
+        let buildFailedPattern = Regex {
+            "Build failed after "
+            Capture(OneOrMore(.any, .reluctant))
+            Anchor.endOfSubject
+        }
+        
+        if let match = line.firstMatch(of: buildFailedPattern) {
+            return String(match.1)
+        }
+        
+        // Pattern: Executed N tests, with N failures (N unexpected) in time (seconds) seconds
+        let executedTestsPattern = Regex {
+            "Executed "
+            OneOrMore(.digit)
+            " test"
+            Optionally("s")
+            ", with "
+            OneOrMore(.digit)
+            " failure"
+            Optionally("s")
+            " ("
+            OneOrMore(.digit)
+            " unexpected) in "
+            Capture(OneOrMore(.any, .reluctant))
+            " ("
+            Capture(OneOrMore(.any, .reluctant))
+            ") seconds"
+            Anchor.endOfSubject
+        }
+        
+        if let match = line.firstMatch(of: executedTestsPattern) {
+            return String(match.1)
         }
         
         return nil

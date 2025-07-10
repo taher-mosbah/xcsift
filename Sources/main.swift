@@ -22,17 +22,24 @@ struct XCSift: ParsableCommand {
         Examples:
           xcodebuild build | xcsift
           xcodebuild test | xcsift
+          swift build | xcsift
+          swift test | xcsift
         """,
-        helpNames: .customLong("help", withSingleDash: false)
+        helpNames: [.short, .long]
     )
     
-    @Flag(name: [.short, .long])
+    @Flag(name: [.short, .long], help: "Show version information")
     var version: Bool = false
     
     func run() throws {
         if version {
             print(getVersion())
             return
+        }
+        
+        // Check if stdin is a terminal (no piped input) before trying to read
+        if isatty(STDIN_FILENO) == 1 {
+            throw ValidationError("No input provided. Please pipe xcodebuild output to xcsift.\n\nExample: xcodebuild build | xcsift")
         }
         
         let parser = OutputParser()

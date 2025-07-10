@@ -26,7 +26,13 @@ curl -L https://github.com/ldomaradzki/xcsift/releases/latest/download/xcsift-vX
 # Move to PATH
 mv xcsift /usr/local/bin/xcsift
 chmod +x /usr/local/bin/xcsift
+
+# If you get a quarantine warning when running xcsift:
+# Remove the quarantine attribute (macOS security feature)
+xattr -d com.apple.quarantine /usr/local/bin/xcsift
 ```
+
+> **Note**: This binary is not code-signed with an Apple Developer ID certificate. macOS will show a security warning when first running it. The `xattr` command above removes the quarantine flag. For open source projects, Apple's $99/year Developer Program is required for code signing - there are no free alternatives for macOS.
 
 ### Option 2: Build from Source
 
@@ -55,6 +61,10 @@ xcodebuild build | xcsift
 
 # Test output parsing
 xcodebuild test | xcsift
+
+# Swift Package Manager support
+swift build | xcsift
+swift test | xcsift
 ```
 
 ## Output Format

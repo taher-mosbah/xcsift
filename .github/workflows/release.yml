@@ -16,8 +16,10 @@ jobs:
       
       - name: Build for Apple Silicon
         run: |
-          # Replace version in source code with git tag
-          sed -i '' "s/return \"1.0.1\" \/\/ This will be replaced by build script/return \"${{ github.ref_name }}\"/" Sources/main.swift
+          # Replace version in source code with git tag (strip v prefix)
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"
+          sed -i '' "s/VERSION_PLACEHOLDER/$VERSION/g" Sources/main.swift
           swift build -c release --arch arm64
             
       - name: Create release archive

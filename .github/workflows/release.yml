@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: macos-14
@@ -16,25 +19,10 @@ jobs:
             
       - name: Create release archive
         run: |
-          tar -czf xcsift-${{ github.ref_name }}-macos-arm64.tar.gz .build/arm64-apple-macosx/release/xcsift
+          tar -czf xcsift-${{ github.ref_name }}-macos-arm64.tar.gz -C .build/arm64-apple-macosx/release xcsift
           
       - name: Create Release
-        uses: actions/create-release@v1
-        id: create_release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ github.ref }}
-          release_name: ${{ github.ref }}
-          draft: false
-          prerelease: false
-          
-      - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./xcsift-${{ github.ref_name }}-macos-arm64.tar.gz
-          asset_name: xcsift-${{ github.ref_name }}-macos-arm64.tar.gz
-          asset_content_type: application/gzip
+          files: xcsift-${{ github.ref_name }}-macos-arm64.tar.gz
+          generate_release_notes: true

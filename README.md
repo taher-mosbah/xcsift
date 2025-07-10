@@ -15,7 +15,18 @@ A Swift command-line tool to parse and format xcodebuild/SPM output for coding a
 
 ## Installation
 
-### Option 1: Download Pre-built Binary (Recommended)
+### Option 1: Homebrew (Recommended)
+
+```bash
+# Install from custom tap
+brew tap ldomaradzki/xcsift
+brew install xcsift
+
+# Or install directly from formula
+brew install https://raw.githubusercontent.com/ldomaradzki/xcsift/master/homebrew-formula/xcsift.rb
+```
+
+### Option 2: Download Pre-built Binary
 
 Download the latest release from [GitHub Releases](https://github.com/ldomaradzki/xcsift/releases):
 
@@ -34,7 +45,7 @@ xattr -d com.apple.quarantine /usr/local/bin/xcsift
 
 > **Note**: This binary is not code-signed with an Apple Developer ID certificate. macOS will show a security warning when first running it. The `xattr` command above removes the quarantine flag. For open source projects, Apple's $99/year Developer Program is required for code signing - there are no free alternatives for macOS.
 
-### Option 2: Build from Source
+### Option 3: Build from Source
 
 ```bash
 git clone https://github.com/ldomaradzki/xcsift.git

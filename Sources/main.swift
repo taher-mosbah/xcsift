@@ -7,7 +7,7 @@ func getVersion() -> String {
     #if DEBUG
     return "dev"
     #else
-    return "1.0.1" // This will be replaced by build script
+    return "VERSION_PLACEHOLDER" // This will be replaced by build script
     #endif
 }
 

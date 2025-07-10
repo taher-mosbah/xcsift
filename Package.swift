@@ -1,5 +1,6 @@
 // swift-tools-version: 5.10
 import PackageDescription
+import Foundation
 
 let package = Package(
     name: "xcsift",
@@ -38,3 +39,4 @@ let package = Package(
         )
     ]
 )
+

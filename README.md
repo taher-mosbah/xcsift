@@ -17,8 +17,23 @@ A Swift command-line tool to parse and format xcodebuild/SPM output for coding a
 
 ## Installation
 
+### Option 1: Download Pre-built Binary (Recommended)
+
+Download the latest release from [GitHub Releases](https://github.com/ldomaradzki/xcsift/releases):
+
 ```bash
-git clone <repository-url>
+# Download and extract
+curl -L https://github.com/ldomaradzki/xcsift/releases/latest/download/xcsift-vX.X.X-macos-arm64.tar.gz | tar -xz
+
+# Move to PATH
+mv xcsift /usr/local/bin/xcsift
+chmod +x /usr/local/bin/xcsift
+```
+
+### Option 2: Build from Source
+
+```bash
+git clone https://github.com/ldomaradzki/xcsift.git
 cd xcsift
 swift build -c release
 cp .build/release/xcsift /usr/local/bin/

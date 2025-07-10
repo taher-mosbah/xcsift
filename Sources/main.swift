@@ -1,21 +1,49 @@
 import ArgumentParser
 import Foundation
+import Darwin
+
+func getVersion() -> String {
+    // Try to get version from git tag during build
+    #if DEBUG
+    return "dev"
+    #else
+    return "1.0.1" // This will be replaced by build script
+    #endif
+}
 
 struct XCSift: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "xcsift",
         abstract: "A Swift tool to parse and format xcodebuild output for coding agents",
-        version: "1.0.0"
+        usage: "xcodebuild [options] | xcsift",
+        discussion: """
+        xcsift reads xcodebuild output from stdin and outputs structured JSON.
+        
+        Examples:
+          xcodebuild build | xcsift
+          xcodebuild test | xcsift
+        """,
+        helpNames: .customLong("help", withSingleDash: false)
     )
     
-    
-    
+    @Flag(name: [.short, .long])
+    var version: Bool = false
     
     func run() throws {
+        if version {
+            print(getVersion())
+            return
+        }
+        
         let parser = OutputParser()
         let input = readStandardInput()
-        let result = parser.parse(input: input)
         
+        // Check if input is empty
+        if input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            throw ValidationError("No input provided. Please pipe xcodebuild output to xcsift.\n\nExample: xcodebuild build | xcsift")
+        }
+        
+        let result = parser.parse(input: input)
         outputResult(result)
     }
     

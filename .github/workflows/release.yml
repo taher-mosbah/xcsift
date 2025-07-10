@@ -15,7 +15,10 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Build for Apple Silicon
-        run: swift build -c release --arch arm64
+        run: |
+          # Replace version in source code with git tag
+          sed -i '' "s/return \"1.0.1\" \/\/ This will be replaced by build script/return \"${{ github.ref_name }}\"/" Sources/main.swift
+          swift build -c release --arch arm64
             
       - name: Create release archive
         run: |

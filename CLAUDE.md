@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-xcsift is a Swift command-line tool that parses and formats xcodebuild/SPM output for coding agents. It transforms verbose Xcode build output into token-efficient JSON or compact text formats optimized for machine readability rather than human consumption.
+xcsift is a Swift command-line tool that parses and formats xcodebuild/SPM output for coding agents. It transforms verbose Xcode build output into token-efficient JSON format optimized for machine readability rather than human consumption.
 
 ## Commands
 
@@ -30,9 +30,8 @@ cp .build/release/xcsift /usr/local/bin/
 # Basic usage (reads from stdin)
 xcodebuild build | xcsift
 
-# With options
-xcodebuild test | xcsift --format compact
-xcodebuild build | xcsift --quiet
+# Test output parsing
+xcodebuild test | xcsift
 ```
 
 ## Architecture
@@ -42,10 +41,8 @@ The codebase follows a simple two-component architecture:
 ### Core Components
 
 1. **main.swift** - Entry point using Swift ArgumentParser
-   - Handles CLI arguments (`--format`, `--quiet`, `--help`)
    - Reads from stdin and coordinates parsing/output
-   - Supports JSON (default) and compact output formats
-   - Implements quiet mode (errors and failed tests only)
+   - Outputs JSON format only
 
 2. **OutputParser.swift** - Core parsing logic
    - `OutputParser` class with regex-based line parsing
@@ -91,5 +88,3 @@ swift test --filter OutputParserTests.testParseError
 The tool outputs structured data optimized for coding agents:
 
 - **JSON**: Structured format with `status`, `summary`, `errors`, `warnings`, `failed_tests`
-- **Compact**: Human-readable format with counts and file:line references
-- **Quiet mode**: Filters out warnings, shows only critical issues

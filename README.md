@@ -8,12 +8,10 @@ A Swift command-line tool to parse and format xcodebuild/SPM output for coding a
 
 ## Features
 
-- **Token-efficient JSON output** - Compact format optimized for coding agents
+- **Token-efficient JSON output** - Structured format optimized for coding agents
 - **Structured error reporting** - Clear categorization of errors, warnings, and test failures
 - **File/line number extraction** - Easy navigation to problematic code locations
 - **Build status summary** - Quick overview of build results
-- **Multiple output formats** - JSON (default) and compact text formats
-- **Quiet mode** - Show only errors and failed tests
 
 ## Installation
 
@@ -47,11 +45,7 @@ Pipe xcodebuild output directly to xcsift:
 xcodebuild [flags] | xcsift
 ```
 
-### Options
-
-- `--format json` - JSON output (default)
-- `--format compact` - Compact text output
-- `--quiet` - Show only errors and failed tests (hide warnings)
+Currently outputs JSON format only.
 
 ### Examples
 
@@ -59,16 +53,13 @@ xcodebuild [flags] | xcsift
 # Basic usage with JSON output
 xcodebuild build | xcsift
 
-# Compact format for quick overview
-xcodebuild test | xcsift --format compact
-
-# Quiet mode - only show critical issues
-xcodebuild build | xcsift --quiet
+# Test output parsing
+xcodebuild test | xcsift
 ```
 
 ## Output Format
 
-### JSON Format (default)
+### JSON Format
 
 ```json
 {
@@ -102,25 +93,13 @@ xcodebuild build | xcsift --quiet
 }
 ```
 
-### Compact Format
-
-```
-STATUS: failed
-SUMMARY: 2E 1W 2F
-ERRORS:
-  main.swift:15 - use of undeclared identifier 'unknown'
-WARNINGS:
-  ViewController.swift:23 - variable 'temp' was never used; consider removing it
-FAILED TESTS:
-  Test assertion - XCTAssertEqual failed: ("invalid") is not equal to ("valid")
-```
 
 ## Comparison with xcbeautify/xcpretty
 
 | Feature | xcsift | xcbeautify | xcpretty |
 |---------|---------|------------|----------|
 | **Target audience** | Coding agents | Humans | Humans |
-| **Output format** | JSON/compact | Colorized text | Formatted text |
+| **Output format** | JSON | Colorized text | Formatted text |
 | **Token efficiency** | High | Medium | Low |
 | **Machine readable** | Yes | No | Limited |
 | **Error extraction** | Structured | Visual | Visual |

@@ -70,9 +70,12 @@ class OutputParser {
     
     func parse(input: String) -> BuildResult {
         let lines = input.components(separatedBy: .newlines)
-        
-        for i in 0..<lines.count {
-            parseLine(lines[i])
+        return parse(lines: lines)
+    }
+    
+    func parse<S: Sequence>(lines: S) -> BuildResult where S.Element == String {
+        for line in lines {
+            parseLine(line)
         }
         
         let status = errors.isEmpty && failedTests.isEmpty ? "success" : "failed"

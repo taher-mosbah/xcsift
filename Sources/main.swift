@@ -1,6 +1,10 @@
 import ArgumentParser
 import Foundation
+#if canImport(Darwin)
 import Darwin
+#else
+import Glibc
+#endif
 
 func getVersion() -> String {
     // Try to get version from git tag during build
@@ -43,23 +47,35 @@ struct XCSift: ParsableCommand {
         }
         
         let parser = OutputParser()
-        let input = readStandardInput()
         
-        // Check if input is empty
-        if input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        // Check if we have any input (peek at the first line)
+        var hasInput = false
+        var firstLine: String?
+        
+        // We need to check if there's input, so collect at least one line
+        if let line = readLine() {
+            hasInput = true
+            firstLine = line
+        }
+        
+        if !hasInput {
             throw ValidationError("No input provided. Please pipe xcodebuild output to xcsift.\n\nExample: xcodebuild build | xcsift")
         }
         
-        let result = parser.parse(input: input)
-        outputResult(result)
-    }
-    
-    private func readStandardInput() -> String {
-        var input = ""
-        while let line = readLine() {
-            input += line + "\n"
+        // Create a new sequence that includes the first line we already read
+        let fullSequence = AnySequence { () -> AnyIterator<String> in
+            var emittedFirst = false
+            return AnyIterator {
+                if !emittedFirst {
+                    emittedFirst = true
+                    return firstLine
+                }
+                return readLine()
+            }
         }
-        return input
+        
+        let result = parser.parse(lines: fullSequence)
+        outputResult(result)
     }
     
     private func outputResult(_ result: BuildResult) {

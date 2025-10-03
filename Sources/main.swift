@@ -1,6 +1,10 @@
 import ArgumentParser
 import Foundation
+#if canImport(Darwin)
 import Darwin
+#else
+import Glibc
+#endif
 
 func getVersion() -> String {
     // Try to get version from git tag during build
